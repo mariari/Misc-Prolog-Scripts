@@ -1,5 +1,3 @@
-:- use_module(library(logtalk)).
-
 :- protocol(set).
    :- public([member/1, empty/0, insert/2, union/2]).
 :- end_protocol.
