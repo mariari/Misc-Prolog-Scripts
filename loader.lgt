@@ -1,1 +1,1 @@
-:- initialization((logtalk_load('oo-set'))).
+:- initialization((logtalk_load(['oo-set', 'vndb']))).

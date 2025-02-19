@@ -5,6 +5,7 @@
 :- module(vndb_raw, [fetch_vndb_stats/1, fetch_vndb_stats_tcp/1]).
 :- use_module(library(socket)).
 :- use_module(library(ssl)).
+:- use_module(library(http/json)).
 :- use_module(library(readutil)).
 :- use_module(library(http/http_open)).
 :- use_module(library(http/http_ssl_plugin)).
