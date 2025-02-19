@@ -1,21 +1,15 @@
+:- module(first, [factorial/2, maximum/2, maximum/3, sigma/3]).
+
 :- use_module(library(clpfd)).
 :- use_module(second).
 
-:- module(first, [colour/1, factorial/2, maximum/2]).
 :- autoload(library(lists), [member/2]).
+:- autoload(library(apply), [foldl/4]).
 
-% colour(X) :-
-%     X = red;
-%     X = green;
-%     X = blue.
-
-?- member(X, [a,b,c]).
-?- foldl(plus, [0], 0, 1).
-
-
-colour(red).
-colour(green).
-colour(blue).
+?- member(_X, [a,b,c]).
+?- color(red).
+?- color(green).
+?- color(blue).
 
 factorial(0,1).
 factorial(N, Res) :-
@@ -32,3 +26,7 @@ maximum([], Acc, Acc).
 maximum([L | Ls], M, Acc) :-
     Acc1 is max(L, Acc),
     maximum(Ls, M, Acc1).
+
+sigma(A, B, N) :-
+    findall(X, between(A, B, X), List),
+    foldl(plus, List, 0, N).
