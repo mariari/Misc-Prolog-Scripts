@@ -1,4 +1,4 @@
-:- module(first, [factorial/2, maximum/2, maximum/3, sigma/3]).
+:- module(first, [factorial/2, maximum/2, maximum/3, sigma/3, as/2]).
 
 :- use_module(library(clpfd)).
 :- use_module(second).
@@ -30,3 +30,6 @@ maximum([L | Ls], M, Acc) :-
 sigma(A, B, N) :-
     findall(X, between(A, B, X), List),
     foldl(plus, List, 0, N).
+
+as --> "".
+as --> "a", as.
