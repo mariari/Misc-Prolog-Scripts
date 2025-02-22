@@ -7,7 +7,7 @@
    %% This is not needed false by default
    member(false).
    insert(X, Set) :- Set = single(X).
-   union(Set1, SetUnion) :- Set1 = SetUnion.
+   union(Set1, SetUnion) :- implements_protocol(Set1, set), Set1 = SetUnion.
 :- end_object.
 
 :- category(default_set_behaviour).
