@@ -9,14 +9,14 @@
     access([Term | _], 2, Term).
     access([_ | Term], 3, Term).
     access(Noun, X, Term) :-
+        integer(X),
         X #> 3,
-        X mod 2 #= 0,
         X #= Y * 2,
         access(Noun, Y, SubNoun),
         access(SubNoun, 2, Term).
     access(Noun, X, Term) :-
+        integer(X),
         X #> 3,
-        X mod 2 #= 1,
         X #= Y * 2 + 1,
         access(Noun, Y, SubNoun),
         access(SubNoun, 3, Term).
@@ -47,6 +47,14 @@
 :- object(nock_tests, extends(lgtunit)).
     :- use_module(library(lists), [flatten/2, member/2]).
     :- public([index_as_vals/1, middling/1]).
+
+    %% TODO make tests "declarative", which I mean, generate the
+    %% infinite space of tests such that for any particular example it
+    %% is within some generation set
+
+    %% noun::generate(Term), flatten(Term, _Flat), forall(member(A, _Flat), noun::acce
+
+    %% Have index_as_vals() be members of this set for a test!
 
     middling([[4, 10, 22], [12 | 13], 14, 30]).
     index_as_vals(X) :- middling(X).
