@@ -3,11 +3,11 @@
 %% We just have a noun namespace we eval from
 :- object(noun).
     :- use_module(library(clpfd)).
-    :- public([access/3]).
+    :- public([access/3, eval/3]).
 
-    access(Noun, 1, Term) :- Term = Noun.
-    access([Hd | _], 2, Term) :- Term = Hd.
-    access([_ | Tl], 3, Term) :- Term = Tl.
+    access(Term, 1, Term).
+    access([Term | _], 2, Term).
+    access([_ | Term], 3, Term).
     access(Noun, X, Term) :-
         X #> 3,
         X mod 2 #= 0,
@@ -20,6 +20,10 @@
         X #= Y * 2 + 1,
         access(Noun, Y, SubNoun),
         access(SubNoun, 3, Term).
+
+    eval(Subject, [0 | Axis], A) :-
+        ::access(Subject, Axis, A).
+    eval(_, [1 | Value], Value).
 :- end_object.
 
 :- object(nock_tests, extends(lgtunit)).
