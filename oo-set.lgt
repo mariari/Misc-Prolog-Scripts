@@ -1,5 +1,5 @@
 :- protocol(set).
-   :- public([member/1, empty/0, insert/2, union/2, product/2, member/2]).
+   :- public([member/1, empty/0, insert/2, union/2, product/2, intersection/2, member/2]).
 :- end_protocol.
 
 :- object(empty_set, implements(set)).
