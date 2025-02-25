@@ -16,7 +16,7 @@
        self(Self), Set = union(Self, single(X)).
    union(Set1, SetUnion) :-
        self(Self), SetUnion = union(Self, Set1).
-   interesection(Set1, SetIntersection) :-
+   intersection(Set1, SetIntersection) :-
        self(Self), SetIntersection = intersection(Self, Set1).
    product(Set, SetProduct) :-
     self(Self), SetProduct = product(Self, Set).
