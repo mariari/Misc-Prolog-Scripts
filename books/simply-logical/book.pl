@@ -1,5 +1,5 @@
-:- module(logical, [connected/3, nearby/2, reachable/2]).
-:- autoload(library(lists), [is_set/1]).
+:- module(logical, [connected/3, nearby/2, reachable/3]).
+:- autoload(library(lists), [is_set/1, reverse/2, member/2]).
 
 % These should be communititive, so do this, not in the book
 connected(X, Y, Z) :- connected_(X, Y, Z).
@@ -23,12 +23,13 @@ nearby(X, Y) :- connected(X, Y, _L).
 nearby(X, Y) :- connected(X, Z, L), connected(Z, Y, L).
 
 % This rule sucks, gets repeat results over and over, lets fix it
-reachable(X, Y) :- reachable_(X, Y, _).
+reachable(X, Y, Path) :-
+    reachable_(X, Y, [X], ReversePath),
+    reverse(ReversePath, Path).
 
-reachable_(X, Y, _) :- connected(X, Y, _).
-reachable_(X, Y, Seen) :-
+reachable_(X, Y, Seen, [Y | Seen]) :- connected(X, Y, _).
+reachable_(X, Y, Seen, Path) :-
     connected(X, Z, _),
-    NewSeen = [Z | Seen],
-    % \+ member(Z, Seen),
-    is_set(NewSeen),
-    reachable_(Z, Y, NewSeen).
+    \+ member(Z, [Y | Seen]),
+    reachable_(Z, Y, [Z | Seen], Path).
+
