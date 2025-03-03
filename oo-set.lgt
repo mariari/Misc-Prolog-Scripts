@@ -31,12 +31,12 @@
 
 :- object(evens, imports(default_set_behaviour), implements(set)).
    :- use_module(library(clpfd)).
-   member(X) :- X in inf..sup, X mod 2 #= 0.
+   member(X) :- (integer(X); var(X)), X mod 2 #= 0.
 :- end_object.
 
 :- object(odds, imports(default_set_behaviour), implements(set)).
    :- use_module(library(clpfd)).
-   member(X) :- X in inf..sup, X mod 2 #= 1.
+   member(X) :- (integer(X); var(X)), X mod 2 #= 1.
 :- end_object.
 
 :- object(union(_S1_, _S2_), imports(default_set_behaviour), implements(set)).
@@ -103,7 +103,7 @@
        combinations([3, 2], [4, 5], Combos),
        forall(lists:member([X, Y], Combos), Product::member((X, Y))).
 
-   test(is_node_is_edge) :-
+   test(graphs) :-
        Nodes = union(single(a), single(b)),
        %% For an undirected graph, the edges are a set of unordered pairs. AKA, sets!
        Edges = single(union(single(a), single(b))),
