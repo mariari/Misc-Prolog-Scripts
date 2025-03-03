@@ -54,9 +54,14 @@
                      implements_protocol(_S2_, set), _S2_::member(Y).
 :- end_object.
 
-:- object(graph(_V_, _E_)).
-   :- public([is_node/1, neighbour/2]).
-   is_node(X) :- implements_protocol(_V_, set), _V_::member(X).
+:- protocol(graph).
+   :- public([node/1, neighbour/2]).
+:- end_protocol.
+
+%% Problems with this implementation of undirected graphs
+%% Nodes can't connect to themselves
+:- object(undirected_graph(_V_, _E_), implements(graph)).
+   node(X) :- implements_protocol(_V_, set), _V_::member(X).
    neighbour(X, Neighbour) :-
        implements_protocol(_V_, set), implements_protocol(_E_, set),
        _V_::member(X), _E_::member(Edge),
@@ -66,6 +71,14 @@
        X \== Neighbour. 
 :- end_object.
 
+:- object(directed_graph(_V_, _E_), implements(graph)).
+   node(X) :- implements_protocol(_V_, set), _V_::member(X).
+   neighbour(X, Neighbour) :-
+       implements_protocol(_V_, set), implements_protocol(_E_, set),
+       _V_::member(X),
+       (_E_::member((X, Neighbour));
+        _E_::member((Neighbour, X))).
+:- end_object.
 
 %% logtalk_load(lgtunit(loader)), logtalk_load('oo-set', [hook(lgtunit)]).
 %% set_tests::run.
@@ -103,12 +116,20 @@
        combinations([3, 2], [4, 5], Combos),
        forall(lists:member([X, Y], Combos), Product::member((X, Y))).
 
-   test(graphs) :-
+   test(undirected_graph_test) :-
        Nodes = union(single(a), single(b)),
        %% For an undirected graph, the edges are a set of unordered pairs. AKA, sets!
        Edges = single(union(single(a), single(b))),
-       Graph = graph(Nodes, Edges),
-       Graph::is_node(a),
+       Graph = undirected_graph(Nodes, Edges),
+       Graph::node(a),
+       Graph::neighbour(a, b).
+
+   test(directed_graph_test) :-
+       Nodes = union(single(a), single(b)),
+       %% For an directed graph, the edges are tuples
+       Edges = single((a, b)),
+       Graph = directed_graph(Nodes, Edges),
+       Graph::node(a),
        Graph::neighbour(a, b).
 
 %% Note on Unions: if the mem is directly from the second slot, it
