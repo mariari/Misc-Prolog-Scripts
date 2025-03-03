@@ -1,4 +1,4 @@
-:- module(first, [factorial/2, maximum/2, maximum/3, sigma/3, as/2, xy/2]).
+:- module(first, [factorial/2, maximum/2, maximum/3, sigma/3, as/2, xy/2, append/3]).
 
 :- use_module(library(clpfd)).
 :- use_module(second).
@@ -37,3 +37,6 @@ as --> "a", as.
 
 xy --> [].
 xy --> ("X" | "Y"), xy.
+
+append([], L, L).
+append([X | L1], L2, [X | L3]) :- append(L1, L2, L3).
