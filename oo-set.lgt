@@ -4,7 +4,7 @@
 
 :- object(empty_set, implements(set)).
    empty.
-   :- use_module(library(pce), [object/2]).
+   % :- use_module(library(pce), [object/2]).
 
    insert(X, Set) :- Set = single(X).
    union(Set1, SetUnion) :- implements_protocol(Set1, set), Set1 = SetUnion.
@@ -22,7 +22,7 @@
    product(Set, SetProduct) :-
        self(Self), SetProduct = product(Self, Set).
    members(Xs) :-
-       findall(X, ::member(X), Xs). 
+       findall(X, ::member(X), Xs).
 :- end_category.
 
 :- object(single(_S1_), imports(default_set_behaviour), implements(set)).
@@ -68,7 +68,7 @@
        implements_protocol(Edge, set),
        Edge::member(X),
        Edge::member(Neighbour),
-       X \== Neighbour. 
+       X \== Neighbour.
 :- end_object.
 
 :- object(directed_graph(_V_, _E_), implements(graph)).

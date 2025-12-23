@@ -3,7 +3,7 @@
 %% We just have a noun namespace we eval from
 :- object(noun).
     :- use_module(library(clpfd)).
-    :- use_module(library(pce), [object/1, object/2]).
+    % :- use_module(library(pce), [object/1, object/2]).
     :- use_module(library(solution_sequences), [distinct/1]).
     :- public([access/3, eval/3, is_cell/2]).
 

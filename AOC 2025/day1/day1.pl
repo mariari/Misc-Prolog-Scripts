@@ -1,16 +1,9 @@
 :- module(day1, [move_fun/4, input_test/1, solve_day1/3]).
 
+:- use_module(aoc(aoc_common)).
 :- use_module(library(clpfd)).
 :- autoload(library(dcg/basics), [integer/3]).
 :- autoload(library(apply), [foldl/4]).
-
-read_file(Stream,[]) :-
-    at_end_of_stream(Stream).
-read_file(Stream,[X|L]) :-
-    \+ at_end_of_stream(Stream),
-    read_line_to_codes(Stream,X),
-    read_file(Stream,L).
-
 
 % DCG effects in system
 move_fun(Start, Result) --> "L", integer(X), {Result #= (Start - X) mod 100}.
@@ -53,7 +46,7 @@ solve_day1(part2, Input, Answer) :-
 
 input_test([`L68`, `L30`, `R48`, `L5`, `R60`, `L55`, `L1`, `L99`, `R14`, `L82`]).
 
-% open('./AOC 2025/day1/input', read, _Str), day1:read_file(_Str, _Input), solve_day1(_, _Input, Answer).
+% open('./AOC 2025/day1/input', read, _Str), aoc_common:read_file(_Str, _Input), solve_day1(_, _Input, Answer).
 % Answer = 1195;
 % Answer = 6770.
 

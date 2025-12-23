@@ -1,8 +1,9 @@
+:- module(set, [new/1, evens/2, odds/2, set_member/2, not_in_set/2, set_rem/3, set_add/3, set_union/3]).
+
 :- use_module(library(clpfd)).
 % :- use_module(library(lambda)).
 :- use_module(library(apply)).
 
-:- module(set, [new/1, evens/2, odds/2, set_member/2, not_in_set/2, set_rem/3, set_add/3, set_union/3]).
 :- use_module(library(dif), [dif/2]).
 
 % First version without logtalk... this means I have to lambda it up

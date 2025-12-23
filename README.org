@@ -1,0 +1,8 @@
+* Misc Prolog Scripts
+Please run:
+
+#+begin_src prolog
+[load].
+#+end_src
+
+to load the codebase
