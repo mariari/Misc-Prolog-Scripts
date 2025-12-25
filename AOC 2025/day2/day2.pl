@@ -15,18 +15,6 @@ parse_input(Ranges) -->
 range((R1, R2)) -->
     integer(R1), "-", integer(R2).
 
-% This also works, introduces 1 choice point though.
-parse_input_bad([(R1, R2)]) --> range((R1, R2)).
-parse_input_bad([(R1, R2) | Ranges]) -->
-    range((R1, R2)), ",", parse_input_bad(Ranges).
-
-% Answer written for part1, generalized in replicate_list, in common.
-split(L, FirstHalf, SecondHalf) :-
-    length(L, N),
-    Half is N div 2,
-    length(FirstHalf, Half), length(SecondHalf, Half),
-    append(FirstHalf, SecondHalf, L).
-
 repeat_pattern(R1, R2, Number) :-
     between(R1, R2, Number),
     number_codes(Number, CodeList),
@@ -42,11 +30,6 @@ repeat_patterns(R1, R2, Number) :-
     once(
         (between(2, L, N),
          repeated(N, CodeList))). % replicate_list(_, N, CodeList)
-
-% Allocates a list, thus is slower, keeping for learning
-answer_part1_slow((R1, R2), N) :-
-    findall(X, repeat_pattern(R1, R2, X), Bag),
-    sumlist(Bag, N).
 
 answer_part1((R1, R2), N) :-
     aggregate_all(sum(X), repeat_pattern(R1, R2, X), N).
@@ -78,3 +61,20 @@ solve_day2(part2, Input, Answer) :-
 % Can run in reverse
 % ?- phrase(day2:parse_input([(11,22), (95, 115)]), Ls).
 % Ls = `11-22,95-115`.
+
+% This also works, introduces 1 choice point though.
+parse_input_bad([(R1, R2)]) --> range((R1, R2)).
+parse_input_bad([(R1, R2) | Ranges]) -->
+    range((R1, R2)), ",", parse_input_bad(Ranges).
+
+% Answer written for part1, generalized in replicate_list, in common.
+split(L, FirstHalf, SecondHalf) :-
+    length(L, N),
+    Half is N div 2,
+    length(FirstHalf, Half), length(SecondHalf, Half),
+    append(FirstHalf, SecondHalf, L).
+
+% Allocates a list, thus is slower, keeping for learning
+answer_part1_slow((R1, R2), N) :-
+    findall(X, repeat_pattern(R1, R2, X), Bag),
+    sumlist(Bag, N).

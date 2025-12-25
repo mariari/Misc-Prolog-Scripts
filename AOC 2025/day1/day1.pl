@@ -1,13 +1,8 @@
-:- module(day1, [move_fun/4, input_test/1, solve_day1/3]).
+:- module(day1, [move/3, input_test/1, solve_day1/3]).
 
-:- use_module(aoc(aoc_common)).
 :- use_module(library(clpfd)).
 :- autoload(library(dcg/basics), [integer/3]).
 :- autoload(library(apply), [foldl/4]).
-
-% DCG effects in system
-move_fun(Start, Result) --> "L", integer(X), {Result #= (Start - X) mod 100}.
-move_fun(Start, Result) --> "R", integer(X), {Result #= (Start + X) mod 100}.
 
 % DCG more properly
 move(move(l, X)) --> "L", integer(X).
@@ -61,3 +56,7 @@ input_test([`L68`, `L30`, `R48`, `L5`, `R60`, `L55`, `L1`, `L99`, `R14`, `L82`])
 % ?- phrase(day1:move(M), `L68`), day1:apply_move(M, 50, X).
 % M = move(l, 68),
 % X = 82.
+
+% DCG effects in system
+move_fun(Start, Result) --> "L", integer(X), {Result #= (Start - X) mod 100}.
+move_fun(Start, Result) --> "R", integer(X), {Result #= (Start + X) mod 100}.
