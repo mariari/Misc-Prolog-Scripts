@@ -34,10 +34,10 @@ lookup_plane(Table, Index, Value) :-
     (ht_get(Table, Index, Value) -> true; Value = 46). % Hacky default but works
 
 forkable(Table, (Roll-Neighbors)) :-
-    maplist(lookup_plane(Table), Neighbors, Numbers),
-    maplist(convert, Numbers, Converted),
     lookup_plane(Table, Roll, Code),
     paper(Code),
+    maplist(lookup_plane(Table), Neighbors, Numbers),
+    maplist(convert, Numbers, Converted),
     sum_list(Converted, Sum), Sum < 4.
 
 forkable_roll((Table, Keys), Roll) :-
@@ -70,13 +70,15 @@ solve_day4(part2, Maze, Answer) :- remove_until_stable(Maze, Answer).
 % Res = 1578 ;
 % Res = 10132 .
 % Time when using ugraph eagerly
-% 1,312,307 inferences, 0.095 CPU in 0.096 seconds (100% CPU, 13776998 Lips)
-% 2,429,967 inferences, 0.089 CPU in 0.090 seconds (100% CPU, 27168918 Lips)
-% 140,585,748 inferences, 4.440 CPU in 4.451 seconds (100% CPU, 31662188 Lips)
-% Time when doing it lazily, after refactor
-% % 939,906 inferences, 0.045 CPU in 0.046 seconds (100% CPU, 20718908 Lips)
-% % 2,782,767 inferences, 0.096 CPU in 0.096 seconds (100% CPU, 29095856 Lips)
-% % 161,753,748 inferences, 5.292 CPU in 5.302 seconds (100% CPU, 30564144 Lips)
+% 1,312,307 inferences, 0.110 CPU in 0.111 seconds (100% CPU, 11912071 Lips)
+% 1,699,060 inferences, 0.057 CPU in 0.057 seconds (100% CPU, 29868459 Lips)
+% 41,516,665 inferences, 1.319 CPU in 1.321 seconds (100% CPU, 31484434 Lips)
+% Time when doing it lazily
+% 939,906 inferences, 0.054 CPU in 0.054 seconds (100% CPU, 17494950 Lips)
+% 1,926,130 inferences, 0.068 CPU in 0.068 seconds (100% CPU, 28218640 Lips)
+% 45,658,555 inferences, 1.479 CPU in 1.483 seconds (100% CPU, 30872258 Lips)
+% Speedup from just reordering
+
 
 % - open('./AOC 2025/day4/test', read, _Str), read_file(_Str, _Input), ht_new(_Ht), time(day4:build_puzzle_table(_Input, _Ht)), ht_get(_Ht, (1,1), Answer).
 
