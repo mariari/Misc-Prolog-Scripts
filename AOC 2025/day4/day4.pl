@@ -15,7 +15,7 @@ build_maze(Puzzle, (Ht, KeysRel)) :-
 build_puzzle_table(Puzzle, Ht) :-
     foldl({Ht}/[P, J0, J1]>>
           (J1 is J0 + 1,
-           foldl({Ht, J0, P}/[Ele, I0, I1]>>
+           foldl({Ht, J0}/[Ele, I0, I1]>>
                  (I1 is I0 + 1,
                   ht_put(Ht, (I0,J0), Ele))
                 , P, 0, _))
@@ -23,11 +23,11 @@ build_puzzle_table(Puzzle, Ht) :-
 
 % This was a ugraph point-rels, but simplified to remove eager comp.
 neighboring_points((I,J), ((I,J)-Rels)) :-
-    Rels0 = [(I-1,J-1), (I,J-1), (I+1,J-1),
-             (I-1,J)  ,          (I+1,J),
-             (I-1,J+1), (I,J+1), (I+1,J+1)],
-    % Ugly Eval, but w/e
-    maplist([(X0,Y0), (X,Y)]>>(X is X0, Y is Y0), Rels0, Rels).
+    I1 is I-1, I2 is I+1,
+    J1 is J-1, J2 is J+1,
+    Rels = [(I1,J1), (I ,J1), (I2,J1),
+            (I1,J ),          (I2,J ),
+            (I1,J2), (I ,J2), (I2,J2)].
 
 % Looksup the puzzle as an infinite plane
 lookup_plane(Table, Index, Value) :-
