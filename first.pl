@@ -14,7 +14,7 @@
 
 factorial(0,1).
 factorial(N, Res) :-
-    N #> 0, Res #> 1,
+    N #> 0,
     N1 #= N - 1,
     Res #= Res2 * N,
     factorial(N1, Res2).
