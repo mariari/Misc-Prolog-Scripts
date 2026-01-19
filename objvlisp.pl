@@ -1,12 +1,15 @@
-:- module(objvlisp, [class/2, super/2, send/1, has/3]).
+:- module(objvlisp, [class/2, super/2, send/1, has/3, slots/2]).
 
-dd(nam) :-
-    dynamic(name),
-    discontiguous(name).
+dd(Name) :-
+    dynamic(Name),
+    discontiguous(Name).
 
 :- dd(class/2).
 :- dd(super/2).
 :- dd(has/3).
+:- dd(oapply/2).
+:- dd(slots/2).
+
 
 % self is dynamic.
 % super is static.
@@ -33,7 +36,7 @@ send(Method) :-
     (lookup(SelfClass, Name, MethodID),
      oapply(MethodID, [Self | Arguments])
     ;
-     not(lookup(SelfClass, Name, MethodID)),
+     not(lookup(SelfClass, Name, _)),
      known(SelfClass),
      send(does_not_understand(Self, Method))).
 
@@ -47,10 +50,6 @@ lookup(Class, MethodName, MethodID) :-
 lookup(Class, MethodName, MethodID) :-
     super(Class, Super),
     lookup(Super, MethodName, MethodID).
-
-
-% Need to union this.
-instance_variable(Class, Var).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Done on Records for Objects %%%
@@ -68,6 +67,7 @@ super(behaviour, object).
 
 % Object
 class(object, class).
+slots(object, [class]).
 has(object, initialize, initialize_object).
 has(object, does_not_understand, does_not_object).
 
@@ -87,25 +87,55 @@ has(class, allocate, allocate_class).
 
 % This should put data in the instance, but not assertz
 class(initialize_object, behaviour).
-oapply(initialize_object, [Self, Initialized_Self]).
-    % Initialized_Self is Self{},
-    % put_dict(class, Self, Name, Initialized_Self).
+oapply(initialize_object, [Self, _, Self]).
+
 
 
 % This should allocate in the top level and assertz
+% We should reassert on fact change somehow?!?
 class(initialize_class, behaviour).
-oapply(initialize_class, [Self, Allocated_Self]).
+oapply(initialize_class, [_, _{name: Name, super: O, ivs: Params}, _]) :-
+    slots(O, Parent_Slots),
+    append(Parent_Slots, Params, AllSlots),
+    define_class(Name, AllSlots, O).
+
+% Call retractall and reinstall on changes
+define_class(Name, AllSlots, O) :-
+    (\+ super(Name, O)     -> assertz(super(Name, O)) ; true),
+    (\+ class(Name, class) -> assertz(class(Name, class)) ; true),
+    % Should we also define the slot accessors?
+    (\+ slots(Name, AllSlots) -> assertz(slots(Name, AllSlots)) ; true).
+
 
 class(allocate_class, behaviour).
 oapply(allocate_class, [Self, Allocated_Self]) :-
     Allocated_Self = Self{}.
 
+class(new_object, behaviour).
+oapply(new_object,[Self, Arguments, NewSelf]) :-
+    send(allocate(Self, Allocated_Self)),
+    send(initialize(Allocated_Self, Arguments, NewSelf)).
+
 % Can be removed after we bootstrap proerply
 class(does_not_object, behaviour).
-oapply(does_not_object, [Self, Arguments]).
+oapply(does_not_object, _).
 
-% send(foo(object, X, A)).
 
+% Our new Object definition
+
+:- send(new(class, _{name: point, super: object, ivs: [x, y]}, _)).
+
+has(point, initialize, initial_point).
+oapply(initial_point, [AllocSelf, _{x: X, y: Y}, InitSelf]) :-
+   InitSelf = AllocSelf.put(x, X).put(y, Y).
+
+% send(new(point, #{x: 3, y: 4}, X)).
+% slots(point, Y), class(point, Z).
+
+% send(new(object, _, A)).
+% send(new(class, #{name: point, super: object, ivs: [x, y]}, _)).
+
+% send(new())
 % A = point{x:1, y:2}, is_dict(A, Tag).
 % A = point{x:1, y:2}, is_dict(A, Tag), get_dict(Key, A, Value).
 
