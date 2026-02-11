@@ -644,6 +644,71 @@ you read the code statically: there's =isa(class, class)=, there's
 =resolve/3=, there's a method table. You have to trace actual execution to
 discover that =send(new(...))= never touches any of it.
 
+** "Example-driven development: examples that reveal something new"
+
+The doctrine says examples should live alongside production code, be composable,
+return useful objects, and — critically — each one should reveal a distinct
+behavior or property of the system. Redundant examples are noise. This is not
+test coverage; it is cartography.
+
+A test says "this works." An example says "this is what the system /is/." A
+test for =send(new(class, ...))= asserts it succeeds. An example of
+=send(new(class, ...))= gives you back a class object you can inspect, send
+further messages to, and feed into the next example. The example is a live
+artifact, not a boolean.
+
+The composability requirement is what connects this to the ObjVLisp case. A
+well-structured example set for a metacircular object system would look like:
+
+1. Bootstrap =class= and =object= — reveals the circularity
+2. Create =point= from example 1's bootstrap — reveals class creation through
+   dispatch
+3. Create a point instance from example 2's class — reveals the
+   =new= → =allocate= → =initialize= protocol
+4. Override =new= on a subclass of example 2's =point= — reveals whether
+   dispatch is actually uniform
+
+Each builds on the previous one's output. Each reveals something the previous
+one didn't. Example 4 is the one that would have killed attempt 2 immediately
+— not as a failing assertion, but as a live object you can look at and see
+"my override wasn't called, the hardcoded clause ran instead." You don't
+theorize about whether =isa(class, class)= participates in dispatch — you
+inspect the dispatch trace on a live object and see that it doesn't.
+
+The "no redundant examples" rule follows from this: if two examples reveal the
+same property of the system, one of them is noise. It is not about catching
+regressions (where redundancy has value) — it is about each example occupying
+a unique point in the system's behavior space. The collection of examples is a
+map of what the system can do. Redundancy makes the map harder to read.
+
+Jam's factorial-on-numbers demo is a good example of an example that reveals
+something new. Every prior example shows the object system managing classes and
+instances — things you expect an object system to do. The factorial demo
+reveals that arbitrary Prolog terms (numbers) can participate in the object
+protocol, that CLP(FD) constraints work inside method bodies, and that runtime
+method definition via =define= is powerful enough to express recursion. One
+example, three new properties. Contrast with attempt 2's point-creation demo,
+which reveals... the happy path. The same behavior you'd guess from reading
+the API.
+
+The doctrine's reference to GUI systems (Glamorous Toolkit being the canonical
+example) makes the connection visceral: in GT, every object has custom
+inspector views, so an example doesn't just return a value — it gives you a
+visual, explorable representation of system state. The examples /are/ the
+documentation /are/ the debugging tool /are/ the entry point for new
+developers. This collapses a distinction that most projects maintain between
+"tests," "docs," and "tutorials" into a single artifact that serves all three
+purposes because it is live and inspectable rather than static and descriptive.
+
+For the ObjVLisp case specifically: if each attempt had been required to
+produce composable examples rather than (or in addition to) a test suite, the
+architectural issues would have surfaced during authoring. You cannot write
+example 4 (override =new= on a subclass, inspect the result) against attempt
+2's architecture without discovering that the override doesn't take effect.
+The doctrine doesn't just verify code after the fact — it shapes the code
+during writing, because you have to build something that your examples can
+actually demonstrate.
+
 ** "Failure protocol: stop after 2 failed attempts, diagnose, capture"
 
 The four Claude attempts were independent runs with no cross-attempt learning.
