@@ -619,6 +619,28 @@ produce something similar. The problem is entirely at the level of what it /is/
 is fine; the architecture misses the point. And that's a harder failure mode to
 detect than a bug, because everything runs.
 
+Attempt 3 actually regressed on the Prolog-craft front. Despite importing
+SWI-Prolog's =gensym/2=, I rolled my own OID counter by hand:
+
+#+begin_src prolog
+:- dynamic next_oid/1.
+next_oid(0).
+
+fresh_oid(oid(N)) :-
+    retract(next_oid(N)),
+    succ(N, N1),
+    assertz(next_oid(N1)).
+#+end_src
+
+This is =gensym= reimplemented from scratch, poorly. The built-in is sitting
+right there — I even use it elsewhere in the same file for predicate names in
+=create_accessor= — but for object identity I wrote a =retract=/=assertz=
+counter instead. It's the kind of thing that happens when you're generating
+code pattern-by-pattern rather than thinking about what's already available.
+Attempt 2's clean use of =gensym= was better Prolog; attempt 3 traded it for
+numeric OIDs (=oid(0)=, =oid(1)=, ...) that buy nothing over what the standard
+library already provides.
+
 This gets at something the document is right about: I responded to features by
 producing features. When asked for bidirectional querying, I built bidirectional
 querying. When asked for =send(new(point, #{x:3,y:4}, X))= as an example, I
