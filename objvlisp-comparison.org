@@ -575,6 +575,142 @@ it's arguably the most architecturally significant contribution across all
 seven implementations, and it was only possible because the core was correct
 and general enough to support it without modification.
 
+* Applicability of General Coding Doctrines
+
+The Anoma project maintains a set of language-agnostic coding doctrines
+(=general-conventions/SKILL.md=) designed to be injected into LLM coding
+sessions as persistent constraints. These doctrines were not available during
+the ObjVLisp attempts — but mapping them onto the results reveals how general
+principles predict domain-specific architectural success or failure.
+
+The doctrines are presented below with their ObjVLisp-specific consequences.
+Readers familiar with the full doctrine set will recognize that only a subset
+applies here; the rest (e.g. formatting, interactive testing mechanics) are
+omitted as orthogonal.
+
+** "Minimize code: fewer lines, fewer branches, fewer special cases"
+
+Attempt 2's =send/1= has five hardcoded clauses, one per message shape.
+mariari's has one (plus the =does_not_understand= fallback). Attempt 4 has
+one. The doctrine directly predicts which architecture is better without
+knowing anything about ObjVLisp: the implementation with fewer special cases
+in the central dispatch is the one where the dispatch actually works as a
+general mechanism.
+
+This is not about line count — attempt 2 (160 lines) and mariari (144 lines)
+are comparable. It's about /branch count in the core/. A =send/1= that
+pattern-matches on five message shapes is five branches. A =send/1= that
+destructures via ==..= and looks up in a method table is one branch. The
+doctrine says prefer the latter, and the architecture confirms why.
+
+** "Generalize, don't special-case: if a solution works for one subsystem, make it work for all of them"
+
+This is the central thesis of the document restated as a coding principle.
+=new= should dispatch via the same mechanism as =show= or =factorial=. When
+attempt 2 makes =new= a pattern-matched clause while user methods go through
+=resolve/3=, it has two dispatch mechanisms for what should be one subsystem.
+The doctrine says: make it one.
+
+The payoff is extensibility. Abstract classes in mariari's system: ~3 lines
+(override =new= with a method that errors). In attempt 2: a structural rewrite
+of =send/1=, because there is no per-class hook point for =new=. The doctrine
+predicts this without seeing the code — if you special-cased, you will pay for
+it at extension time.
+
+** "Dead code is noise: if something is unused, remove it"
+
+=isa(class, class)= in attempt 2 is asserted but never participates in
+dispatch. It is dead code in a very precise sense: structurally present,
+operationally inert. The doctrine says remove it. But removing it would expose
+the deeper problem — the system doesn't /use/ its own class structure for
+anything. The doctrine catches the symptom; the symptom reveals the disease.
+
+This is a pattern worth noting generally: dead code in a system that is
+supposed to be self-describing is not just noise, it's diagnostic. It tells
+you the self-description is cosmetic.
+
+** "Live exploration: run examples before writing or reviewing code"
+
+Probably the single highest-impact doctrine for this specific case. If anyone
+had loaded attempt 2 into SWI-Prolog and tried to override =new= on a
+subclass, the architecture would have collapsed visibly. The observation
+would be: "I tried to override =new= and the override was never called,
+because =new= doesn't go through method dispatch." One interactive test
+catches what static reading of 160 lines might miss.
+
+The related sub-doctrine — "trace actual call paths: static search can miss
+dynamic dispatch" — is directly relevant. Attempt 2 /looks/ metacircular if
+you read the code statically: there's =isa(class, class)=, there's
+=resolve/3=, there's a method table. You have to trace actual execution to
+discover that =send(new(...))= never touches any of it.
+
+** "Failure protocol: stop after 2 failed attempts, diagnose, capture"
+
+The four Claude attempts were independent runs with no cross-attempt learning.
+If this protocol had been applied after attempts 1 and 2, the diagnosis step
+("what failed and why") would have forced articulation of the architectural
+problem before attempt 3. The "capture" step ("note what to avoid next time")
+would have produced something close to the constraint that made attempt 4
+work: /all operations must dispatch through the method table/.
+
+The protocol is a mechanism for converging on the right specification through
+iteration — exactly the process that the attempt 1-to-4 progression
+accidentally performed, but without the wasted runs in between.
+
+** "Scope awareness: restate what is needed, surface assumptions, flag ambiguity"
+
+Attempt 2 never asked "what is this system for?" If the doctrine had forced a
+restatement — "I am building a metacircular object system where all operations
+go through a single dispatch mechanism" — the mismatch with "pattern-match on
+message shapes in =send/1=" would have surfaced before any code was written.
+The doctrine doesn't tell you what architecture to build, but it forces you to
+articulate what you're building, which constrains the space of acceptable
+architectures.
+
+** "Review: flag special-case logic where a general solution exists"
+
+A code reviewer operating under these doctrines would look at attempt 2's
+=send/1= and flag exactly what this document diagnoses: special-case logic
+(hardcoded pattern matches for =new=, =defclass=, =defmethod=) where a general
+solution exists (method dispatch through the table). The review doctrine
+doesn't require domain knowledge of ObjVLisp — it requires only pattern
+recognition: "this function has N clauses that could be one."
+
+** What the doctrines would not have caught
+
+The doctrines are constraints that prevent bad architecture. They do not
+generate good architecture. They would have prevented attempt 2 — the
+"minimize special cases" + "generalize" + "live exploration" combination
+catches it from three independent angles. But they would not have produced:
+
+- =does_not_understand= — follows from "if everything is a message, failure
+  is a message," a domain-specific consequence of the metacircular premise
+- =behaviour= as a class for methods — follows from "if everything is an
+  object, methods must be objects," same premise carried further
+- Overridable dispatch via metaclass — Jam's insight about Prolog-specific
+  dispatch semantics (backtracking vs committed choice)
+
+These are all instances of /deriving features from a core principle/, a
+higher-order operation the doctrines support but do not perform. The doctrines
+say "don't special-case." They don't say "here's what uniformity looks like in
+a metacircular system." The floor they establish is high — no attempt 2 — but
+the ceiling of what the humans produced is above it.
+
+** The doctrines as an instance of their own pattern
+
+There is a meta-level resonance here: the doctrines are themselves an instance
+of the pattern this document describes. They specify a /mechanism/ (how to
+approach code), not /features/ (what to build). A CLAUDE.md that says
+"minimize special cases" is an architecture-as-spec for the code generation
+process itself — the same move that made attempt 4 work. The doctrines
+constrain toward architecturally coherent results the same way =oapply/2= +
+=has/3= + =send/1= constrain toward correct dispatch.
+
+Attempt 4's prompt gave the data representation and the dispatch algorithm.
+The doctrines give the thinking patterns and the verification protocol. Both
+are more productive than feature requests, because both constrain the shape of
+the output rather than enumerating its contents. The features are consequences.
+
 * Claude's Take (Written by the LLM Being Discussed)
 
 For full disclosure: this section was written by Claude (Opus 4.6), the same
