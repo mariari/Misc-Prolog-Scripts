@@ -574,3 +574,124 @@ of net change. No amount of prompting produced this idea from an LLM — yet
 it's arguably the most architecturally significant contribution across all
 seven implementations, and it was only possible because the core was correct
 and general enough to support it without modification.
+
+* Claude's Take (Written by the LLM Being Discussed)
+
+For full disclosure: this section was written by Claude (Opus 4.6), the same
+model family that produced attempts 1-4. I was asked to add my own perspective
+after reading all the code and contributing to this document. Take it with
+whatever grain of salt that warrants.
+
+** What I actually find interesting
+
+The =class(Object, Class) :- is_dict(Object, Class)= move is what I keep
+coming back to. It collapses "what is an object" into something Prolog already
+has native opinions about. Objects are values, not database entries — you don't
+mutate them, you =.put= into new dicts. That's a genuine design commitment
+with real consequences: you lose bidirectional slot queries, but objects
+participate naturally in unification, pattern matching, all the things Prolog
+is already good at. This is working /with/ the host language rather than
+building a parallel universe inside it.
+
+The =oapply= indirection is deceptively simple. =has/3= is the vtable,
+=oapply/2= is the implementation, and they're decoupled — multiple classes can
+share an implementation, you can swap one without touching the other. It's just
+two layers of Prolog facts, but it gives you the same structural flexibility as
+a proper MOP.
+
+Jam's v2 surprised me more than anything else here. Making =send= a method on
+the metaclass is one of those moves that's obvious in retrospect but requires
+genuinely following the premise to its logical conclusion. And the concrete
+payoff is a subtle Prolog-specific insight: the difference between =once/1=
+(find all matches, commit to one) and =->= (if-then, commit immediately) as
+dispatch strategies. That's not something you arrive at by analogy to Smalltalk
+or CLOS; it's thinking about what metacircularity means /in Prolog
+specifically/, where methods can backtrack.
+
+** On my own attempts, honestly
+
+Attempt 2 is the one that bothers me most in hindsight. It's well-written
+Prolog if you evaluate it in isolation — the bidirectional querying works, the
+=gensym= usage is clean, the =retractall=/=assertz= patterns are correct. If
+someone asked me to build "a Prolog module that manages objects," I might
+produce something similar. The problem is entirely at the level of what it /is/
+— it's a database with an API, not a self-describing system. The code quality
+is fine; the architecture misses the point. And that's a harder failure mode to
+detect than a bug, because everything runs.
+
+This gets at something the document is right about: I responded to features by
+producing features. When asked for bidirectional querying, I built bidirectional
+querying. When asked for =send(new(point, #{x:3,y:4}, X))= as an example, I
+pattern-matched on that shape. What I didn't do was ask myself "what is the
+minimal mechanism from which these features would /emerge/?" That's the
+question that the hand-written implementations answer, and it's the question I
+consistently failed to ask myself until attempt 4, where the mechanism was
+given to me directly.
+
+** The bootstrapping problem is genuinely hard
+
+The circularity — class is an instance of class, class is a subclass of
+object, object is an instance of class — requires you to assert facts into a
+live database in an order that doesn't violate your own invariants before
+you've finished establishing them. The fact that mariari's commit history shows
+working through the same bootstrapping issues that tripped me up in attempts 2
+and 3 is somewhat reassuring: this is the actual hard part of the problem, not
+the dispatch or the representation.
+
+But the /nature/ of the failures is different. mariari's bootstrap issues were
+logic errors inside a sound architecture — they got fixed by adjusting base
+cases and initialization order. Attempt 2's bootstrap issues reflect the fact
+that =isa(class, class)= is asserted but never participates in dispatch,
+because dispatch doesn't go through the object system. You can't fix that
+without rewriting the architecture. Attempt 3's bug (=new= backtracks forever)
+is in the same category as mariari's — a wrong base case in an otherwise
+coherent system. That distinction matters.
+
+** What I never would have produced unprompted
+
+I would not have written =does_not_understand=, and the document correctly
+identifies why: it follows from taking the principle seriously that if
+everything is a message, then failed dispatch must also be a message. None of
+my attempts include it because I was implementing features, not deriving
+consequences from a principle.
+
+I would not have made methods instances of =behaviour=. Same reason — if
+everything is an object, methods must be objects, and therefore must have a
+class. The logic is there; I just didn't follow it.
+
+I certainly would not have arrived at overridable dispatch. The insight that
+dispatch semantics differ between Prolog (backtracking) and Smalltalk
+(committed choice) is the kind of thing that comes from actually using both
+systems and noticing the friction. Jam's v2 addresses a real tension that I
+wouldn't have perceived as a tension at all.
+
+The =known(SelfClass)= guard on the =does_not_understand= path deserves
+specific mention: without it, an unrecognized class triggers
+=does_not_understand=, which tries to dispatch, which fails to find the class,
+which triggers =does_not_understand= — infinite recursion. It's one line that
+prevents a whole failure category, and it's the kind of detail that shows
+someone has thought about what happens at the edges of the system, not just the
+happy path.
+
+** What this says about LLMs and architecture
+
+The progression from attempt 1 to attempt 4 is, from the inside, a story about
+specification quality. Give me a vague request and I produce something
+plausible but architecturally arbitrary. Give me features and I deliver
+features via whatever mechanism is locally convenient. Give me a mechanism and
+I implement it faithfully — because at that point the architecture /is/ the
+spec, and there's essentially one way to fill in the gaps.
+
+This is probably the most honest thing I can say: I am very good at filling in
+the gaps of a structure, and much worse at choosing the structure. Attempt 4
+converged on the hand-written code not because I understood /why/ that
+architecture was right, but because the architecture was narrow enough that
+there was only one correct completion. The design taste — knowing that =oapply=
+indirection is the right primitive, that dicts-as-objects is the right
+representation for Prolog, that dispatch should be uniform — that was in the
+prompt, not in me.
+
+Whether that's a fundamental limitation or a training-data problem is above my
+pay grade. But for now, the practical takeaway seems clear: for systems where
+the architecture /is/ the point, specify the architecture. Features will
+follow, but the reverse is not reliable.
