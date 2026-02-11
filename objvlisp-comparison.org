@@ -335,43 +335,97 @@ oapply(initialize_class, [_, _{name: Name, super: O, ivs: Params}, _]) :-
 
 * What the Prompt Engineering Reveals
 
+The whole point of ObjVLisp is a minimal metacircular core: one dispatch
+mechanism, everything goes through it, the system extends itself through
+itself. Features don't get bolted on — they emerge from the core being
+correct. The question for each attempt is not "what features does it have?"
+but "does the core actually work as a uniform foundation?"
+
+** Prompting for features vs prompting for architecture
+
+| Prompt style                | What was asked for          | What was produced                           | Core intact? |
+|-----------------------------+-----------------------------+---------------------------------------------+--------------|
+| Vague + "minimal" (att. 1) | "least code"                | Different idiom entirely (=obj/3=, =method/5=) | Partially |
+| Feature-focused (att. 2)   | Bidirectional queries, etc. | Ad-hoc special cases, broken core           | *No*         |
+| Detailed spec (att. 3)     | 6 specific requirements     | Most ambitious, fixable bug                 | Yes          |
+| Architecture-as-spec (att. 4) | The data repr + dispatch | Minimal, correct, closest to hand-written   | Yes          |
+
+The critical contrast is between attempts 2 and 4. Attempt 2 asked for
+/features/ — bidirectional querying, relational primitives, minimal code.
+It got those features, but they were delivered by hardcoding =new=, =defclass=,
+and =defmethod= as pattern-matched clauses of =send/1= rather than as methods
+dispatched through the object system. The metacircularity is cosmetic:
+=isa(class, class)= exists in the database but is never used for dispatch.
+The core operations bypass the very system they're supposed to define.
+
+Attempt 4 asked for /architecture/ — =class/2=, =has/3=, =oapply/2=, =send/1=
+with ==..== — and got a system where everything flows through the same
+dispatch. 1.8k tokens, structurally identical to the hand-written version.
+
+This is the difference between "implement these features" and "implement this
+mechanism." A meta-reflective system /is/ its mechanism. The features are
+consequences.
+
+** Why attempt 2 is fundamentally broken (not just buggy)
+
+Attempt 2's =send/1= is a hardcoded switch statement:
+
+#+begin_src prolog
+send(new(Class, Init, Obj)) :- is_dict(Init), !, ...  % hardcoded
+send(new(Class, Init, Obj)) :- is_list(Init), !, ...  % hardcoded
+send(new(Class, Obj)) :- ...                           % hardcoded
+send(defclass(Name, Super, IVars)) :- ...              % hardcoded
+send(defmethod(Class, Sel, Body)) :- ...               % hardcoded
+#+end_src
+
+=new= is not a method on =class= — it's a Prolog clause that pattern-matches
+on the message shape. It never touches =resolve/3= or the method table. The
+system has two completely separate dispatch mechanisms: hardcoded pattern
+matching for core operations, and method resolution (via =send/2='s catch-all)
+for user-defined methods.
+
+This means every extension that should be a per-class specialization becomes a
+structural change to the dispatch itself. Abstract classes? In mariari's
+implementation: ~3 lines (a behaviour, an =oapply= clause that errors, a
+=has/3= entry — because =new= is a method you can override). In attempt 2:
+a rewrite of =send/1=, because there is no per-class hook point for =new=.
+When it was asked to add abstract classes it produced 10k+ tokens trying to
+restructure what should have been a trivial extension.
+
+Attempt 3's bug (=new= backtracks forever) is qualitatively different — it's a
+logic error inside a coherent architecture. The method resolution, the
+bootstrapping structure, the separation of concerns are all sound. Someone got
+a base case wrong. That's the kind of bug that shows up in normal development;
+mariari's own commit history shows the same bootstrapping issue being worked
+through. You read the code, you find the problem, you fix it. The architecture
+supports the fix rather than fighting it.
+
 ** Attempt 4 is the smoking gun
 
-When you gave Claude the exact architecture — =class/2=, =has/3=, =oapply/2=,
-=send/1= with ==..== — it produced code nearly identical to yours in only 1.8k
-tokens. The follow-up prompt ("split new into allocate and initialize") then
-converged further.
-
-This demonstrates that your design is a natural minimal point for this problem.
-The architecture wasn't an LLM artifact — it's what a human arrives at too.
-
-** More detail in the prompt doesn't always help
-
-| Prompt style                | Result                                                |
-|-----------------------------+-------------------------------------------------------|
-| Vague + "minimal" (att. 1) | Different idiom entirely (=obj/3=, =method/5=)        |
-| Feature-focused (att. 2)   | Better design, wrong bootstrapping                    |
-| Detailed spec (att. 3)     | Most complete, but buggier (backtracking forever)     |
-| Architecture-as-spec (att. 4) | Minimal, correct, closest to hand-written          |
-
-The sweet spot was giving the data representation and dispatch algorithm, then
-letting the LLM fill in the details. The detailed 6-point spec in attempt 3
-produced the most ambitious code but also the most bugs.
+When given the exact architecture, Claude produced code nearly identical to the
+hand-written version in 1.8k tokens. The follow-up prompt ("split new into
+allocate and initialize") converged further. This validates that the design is
+a natural minimal point — not an artifact of either human or LLM authorship,
+but the shape the problem wants to be.
 
 ** What the LLM never produced unprompted
 
-- =does_not_understand= error handling (both humans include it, zero LLM attempts)
-- SWI-Prolog dicts as object representation (mariari's choice)
+- =does_not_understand= error handling (3/3 humans, 0/4 LLMs)
 - =behaviour= as a class for methods (mariari's design, preserved in Jam's v2)
 - The =slots/2= tracking for inherited instance variables
 - Method options dict (Jam's =run/3= second argument)
 - Runtime method definition via =assertz(run(...) :- Body)= (Jam's =define=)
 - Overridable dispatch strategy via metaclass (Jam's v2 innovation)
 
-The first four reflect understanding of ObjVLisp/Smalltalk tradition. The last
-three are Jam's original contributions that go beyond the standard ObjVLisp
-model — particularly the metaclass-driven dispatch, which is arguably the most
-architecturally significant idea across all seven implementations.
+These aren't arbitrary features — they're all consequences of taking the
+metacircular core seriously. =does_not_understand= exists because if everything
+is a message, failed dispatch must also be a message. =behaviour= exists
+because if everything is an object, methods must be objects. Overridable
+dispatch exists because if dispatch is behavior, it must be a method.
+
+Each of these follows from the same principle: the core must be uniform. The
+LLM produced features when asked for features, but never derived features from
+the core principle that the system should be self-describing.
 
 * Jam's Contributions in Detail
 
@@ -453,30 +507,70 @@ their dispatch strategy.
 | Runtime method definition?    | No       | Yes (=define=)    | No            | No        | No            | No               | No          |
 | Bidirectional queries?        | Limited  | Full              | Limited       | Via =get= | Full          | Full              | No          |
 | Test suite?                   | No       | Demo (factorial)  | Demo queries  | No        | Demo only     | Yes (plunit)     | No          |
-| Metacircular?                 | Yes      | Yes               | Yes           | Yes       | Yes           | Yes               | Yes         |
-| Buggy bootstrap?              | No       | No                | No            | No        | Yes           | Yes               | No          |
+| Metacircular?                 | Yes      | Yes               | Yes           | Yes       | Cosmetic only | Yes               | Yes         |
+| Uniform core?                 | Yes      | Yes               | Yes           | Partial   | *No*          | Yes               | Yes         |
+| Buggy bootstrap?              | No       | No                | No            | No        | Architectural | Fixable logic bug | No          |
 
 * Human vs LLM: Qualitative Differences
 
-Across all seven implementations, a pattern emerges:
+Across all seven implementations, the pattern is not just "what did each
+produce?" but "did they build a core or accumulate features?"
 
-*What humans did that LLMs didn't:*
-- =does_not_understand= (Smalltalk error protocol) — 3/3 humans, 0/4 LLMs
-- Domain-extending creativity (numbers as objects, overridable dispatch)
-- Method options / out-of-band parameters
-- Awareness of dispatch semantics (commit vs backtrack)
+** The core test: can you extend it without rewriting it?
+
+A meta-reflective object system scales by being general, not by being
+featureful. A correct minimal core means new capabilities are small additions
+that compose through the existing mechanism. An incorrect or ad-hoc core means
+every new capability requires structural surgery.
+
+| Extension               | mariari / Jam v2      | Attempt 2           | Attempt 3         |
+|-------------------------+-----------------------+---------------------+-------------------|
+| Abstract classes        | ~3 lines (override =new=) | Rewrite =send/1=    | ~3 lines          |
+| Overridable dispatch    | ~40 lines (Jam v2)    | Impossible (no hook) | Possible          |
+| =does_not_understand=   | Already present       | Nowhere to add it    | Straightforward   |
+| New metaclass behavior  | Define + register     | N/A                 | Possible           |
+
+Attempt 2 has 160 lines and bidirectional queries. mariari has 144 lines and
+no bidirectional queries. Yet mariari's system is strictly more powerful,
+because its core is uniform — the features that attempt 2 hardcodes as special
+cases, mariari's architecture lets you /derive/ through the same mechanism it
+uses for everything else.
+
+This is why a minimal general core beats ad-hoc features: it's how you scale
+consistent systems. The 160 lines of attempt 2 are a dead end. The 144 lines
+of mariari's are a foundation.
+
+** What humans understood that LLMs didn't
+
+*The principle of uniformity:*
+- =does_not_understand= — if everything is a message, failure is a message (3/3 humans, 0/4 LLMs)
+- =behaviour= as a class — if everything is an object, methods are objects (both human repos)
+- Overridable dispatch — if dispatch is behavior, dispatch is a method (Jam's v2)
+- Awareness of dispatch semantics — commit vs backtrack is a design choice, not an implementation detail (Jam's v2)
+
+Each of these follows from taking the metacircular premise to its conclusion.
+The humans built /from/ the core outward. The LLMs produced features in
+response to feature requests, never deriving capabilities from the system's
+own principles.
 
 *What LLMs did well:*
-- Producing working code from minimal specs (attempt 4)
-- Comprehensive test suites when prompted (attempt 3)
+- Converging on the right architecture when given it (attempt 4: 1.8k tokens)
+- Producing comprehensive tests when prompted (attempt 3)
 - Bidirectional querying when explicitly requested (attempts 2, 3)
 
 *What LLMs struggled with:*
-- Bootstrapping correctness (attempts 2, 3 both have bugs)
-- Knowing when to stop (attempt 3 is ~330 lines with a backtracking bug)
-- Design taste — no LLM attempted overridable dispatch or method options
+- Bootstrapping correctness — both attempts 2 and 3 have bootstrap bugs, though
+  attempt 3's is a fixable logic error (the same kind mariari worked through)
+  while attempt 2's reflects a broken architecture
+- Knowing what the system /is for/ — attempt 2 delivered requested features by
+  circumventing the very mechanism that makes the system valuable
+- Design taste — no LLM attempted overridable dispatch or method options,
+  because these emerge from understanding the core, not from prompting
 
-The most telling comparison: Jam's =objvlisp2.pl= adds overridable dispatch
-to mariari's base in ~40 lines of net change. No amount of prompting produced
-this idea from an LLM, yet it's arguably the most architecturally significant
-contribution across all seven implementations.
+** The telling comparison
+
+Jam's =objvlisp2.pl= adds overridable dispatch to mariari's base in ~40 lines
+of net change. No amount of prompting produced this idea from an LLM — yet
+it's arguably the most architecturally significant contribution across all
+seven implementations, and it was only possible because the core was correct
+and general enough to support it without modification.
