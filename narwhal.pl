@@ -5,11 +5,14 @@
 %%
 %% Block IDs: b(Validator, Round)
 %% Cert  IDs: c(Validator, Round)
+%%
+%% A cert c(V, R) always corresponds to block b(V, R) — the
+%% relationship is structural, not stored.
 
 :- module(narwhal, [
        % DAG construction
-       make_block/5,
-       make_cert/4,
+       make_block/4,
+       make_cert/3,
        % Validity checks
        valid_block/2,
        valid_cert/2,
@@ -21,8 +24,8 @@
        blocks_at_round/2,
        quorum/2,
        % Re-export dynamic predicates for bullshark
-       block/5,
-       cert/5,
+       block/3,
+       cert/2,
        config/1,
        reset_dag/0
    ]).
@@ -30,16 +33,20 @@
 :- use_module(library(lists), [member/2, subtract/3]).
 :- use_module(library(apply)).
 
-%% block(Id, Validator, Round, Txs, CertRefs)
-%% cert(Id, BlockId, Validator, Round, Signers)
+%% block(b(Validator, Round), Txs, CertRefs)
+%% cert(c(Validator, Round), Signers)
 %% config(config(N, F, Validators))
-:- dynamic block/5, cert/5, config/1.
+%%
+%% c(V, R) always corresponds to b(V, R) — a cert certifies the
+%% block by the same validator at the same round.  The relationship
+%% is encoded in the term structure, not stored as a separate field.
+:- dynamic block/3, cert/2, config/1.
 
 %% reset_dag/0
 %  Retract all DAG state.
 reset_dag :-
-    retractall(block(_, _, _, _, _)),
-    retractall(cert(_, _, _, _, _)),
+    retractall(block(_, _, _)),
+    retractall(cert(_, _)),
     retractall(config(_)).
 
 %% quorum(+Config, -Q)
@@ -47,42 +54,39 @@ reset_dag :-
 quorum(config(_, F, _), Q) :-
     Q is 2 * F + 1.
 
-%% make_block(+Validator, +Round, +Txs, +CertRefs, -Id)
+%% make_block(+Validator, +Round, +Txs, +CertRefs)
 %  Assert a new block into the DAG.
-make_block(Validator, Round, Txs, CertRefs, Id) :-
+make_block(Validator, Round, Txs, CertRefs) :-
     Id = b(Validator, Round),
-    \+ block(Id, _, _, _, _),
-    assertz(block(Id, Validator, Round, Txs, CertRefs)).
+    \+ block(Id, _, _),
+    assertz(block(Id, Txs, CertRefs)).
 
-%% make_cert(+Validator, +Round, +Signers, -Id)
+%% make_cert(+Validator, +Round, +Signers)
 %  Assert a certificate for the validator's block at this round.
 %  Signers must be a set (no duplicate validators).
-make_cert(Validator, Round, Signers, Id) :-
+make_cert(Validator, Round, Signers) :-
     is_set(Signers),
     Id = c(Validator, Round),
-    BlockId = b(Validator, Round),
-    block(BlockId, _, _, _, _),
-    \+ cert(Id, _, _, _, _),
-    assertz(cert(Id, BlockId, Validator, Round, Signers)).
+    block(b(Validator, Round), _, _),
+    \+ cert(Id, _),
+    assertz(cert(Id, Signers)).
 
 %% valid_block(+Id, +Config)
 %  A block is valid if:
 %  - genesis (round 0): empty cert refs
 %  - otherwise: cert refs form a quorum from the previous round
 valid_block(b(V, 0), Config) :-
-    block(b(V, 0), V, 0, _, CertRefs),
+    block(b(V, 0), _, CertRefs),
     Config = config(_, _, Validators),
     member(V, Validators),
     CertRefs == [].
 valid_block(b(V, R), Config) :-
     R > 0,
-    block(b(V, R), V, R, _, CertRefs),
+    block(b(V, R), _, CertRefs),
     Config = config(_, _, Validators),
     member(V, Validators),
     PrevR is R - 1,
-    % Cert refs must all be from the previous round
     maplist(cert_at_round(PrevR), CertRefs),
-    % Must reference a quorum of certs
     length(CertRefs, Len),
     quorum(Config, Q),
     Len >= Q.
@@ -93,9 +97,9 @@ cert_at_round(R, c(_, R)).
 %  A certificate is valid if:
 %  - its block exists and is valid
 %  - signers form a quorum of distinct validators
-valid_cert(Id, Config) :-
-    cert(Id, BlockId, _, _, Signers),
-    valid_block(BlockId, Config),
+valid_cert(c(V, R), Config) :-
+    cert(c(V, R), Signers),
+    valid_block(b(V, R), Config),
     Config = config(_, _, Validators),
     is_set(Signers),
     subset(Signers, Validators),
@@ -106,8 +110,8 @@ valid_cert(Id, Config) :-
 %% valid_dag(+Config)
 %  Every block and cert in the DAG is valid.
 valid_dag(Config) :-
-    forall(block(Id, _, _, _, _), valid_block(Id, Config)),
-    forall(cert(Id, _, _, _, _), valid_cert(Id, Config)).
+    forall(block(Id, _, _), valid_block(Id, Config)),
+    forall(cert(Id, _), valid_cert(Id, Config)).
 
 %% causal_history(+CertId, -History)
 %  Transitive closure of cert references.
@@ -120,8 +124,8 @@ causal_history_acc([], Acc, History) :-
 causal_history_acc([C | Rest], Acc, History) :-
     (   member(C, Acc)
     ->  causal_history_acc(Rest, Acc, History)
-    ;   cert(C, BlockId, _, _, _),
-        block(BlockId, _, _, _, CertRefs),
+    ;   C = c(V, R),
+        block(b(V, R), _, CertRefs),
         append(CertRefs, Rest, NewWork),
         causal_history_acc(NewWork, [C | Acc], History)
     ).
@@ -134,11 +138,11 @@ cert_in_history(CertId, TargetCert) :-
 
 %% certs_at_round(+Round, -Certs)
 certs_at_round(Round, Certs) :-
-    findall(Id, cert(Id, _, _, Round, _), Certs).
+    findall(c(V, Round), cert(c(V, Round), _), Certs).
 
 %% blocks_at_round(+Round, -Blocks)
 blocks_at_round(Round, Blocks) :-
-    findall(Id, block(Id, _, Round, _, _), Blocks).
+    findall(b(V, Round), block(b(V, Round), _, _), Blocks).
 
 %% is_set(+List)
 %  True if List contains no duplicates.

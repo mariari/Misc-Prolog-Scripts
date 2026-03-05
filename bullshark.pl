@@ -36,7 +36,8 @@ leader(Wave, Leader) :-
 %  The anchor certificate for a wave: the leader's cert at the anchor round.
 %  Works generatively by enumerating cert facts when Wave is unbound.
 anchor_cert(Wave, CertId) :-
-    cert(CertId, _, Leader, Round, _),
+    CertId = c(Leader, Round),
+    cert(CertId, _),
     Round > 0,
     wave(Round, Wave),
     anchor_round(Wave, Round),
@@ -54,14 +55,14 @@ references_cert(CertId, TargetCert) :-
 committed_anchor(AnchorCert, Config) :-
     Config = config(_, F, _),
     AnchorCert = c(_, AnchorRound),
-    cert(AnchorCert, _, _, AnchorRound, _),
+    cert(AnchorCert, _),
     wave(AnchorRound, Wave),
-    anchor_round(Wave, AnchorRound),    % verify it's actually an anchor round
+    anchor_round(Wave, AnchorRound),
     vote_round(Wave, VoteRound),
     Threshold is F + 1,
-    % Find vote-round certs that reference this anchor
     findall(VC, (
-        cert(VC, _, _, VoteRound, _),
+        cert(VC, _),
+        VC = c(_, VoteRound),
         references_cert(VC, AnchorCert)
     ), VoteCerts),
     length(VoteCerts, Count),
@@ -74,13 +75,10 @@ committed_anchor(AnchorCert, Config) :-
 committed(CertId, Config) :-
     committed_anchor(CertId, Config).
 committed(CertId, Config) :-
-    % CertId must itself be an anchor
     CertId = c(_, R),
-    cert(CertId, _, _, R, _),
+    cert(CertId, _),
     wave(R, W),
     anchor_round(W, R),
-    % Find a directly committed anchor at a later wave whose
-    % causal history contains CertId
     anchor_cert(CW, CommittedAnchor),
     CW > W,
     committed_anchor(CommittedAnchor, Config),
@@ -101,10 +99,7 @@ all_committed_anchors(Config, Anchors) :-
 %  All block IDs reachable from a cert's causal history.
 blocks_in_cert_history(CertId, Blocks) :-
     causal_history(CertId, Certs),
-    findall(BlockId, (
-        member(C, Certs),
-        cert(C, BlockId, _, _, _)
-    ), BlockList),
+    findall(b(V, R), member(c(V, R), Certs), BlockList),
     sort(BlockList, Blocks).
 
 %% total_order(+Config, -Order)
@@ -118,9 +113,7 @@ total_order(Config, Order) :-
 total_order_acc([], _, []).
 total_order_acc([Anchor | Rest], Seen, Order) :-
     blocks_in_cert_history(Anchor, AllBlocks),
-    % Only include blocks not yet seen (new to this anchor's batch)
     subtract(AllBlocks, Seen, NewBlocks),
-    % Sort by (Round, Validator) for determinism
     sort(NewBlocks, SortedNew),
     append(Seen, SortedNew, NewSeen),
     total_order_acc(Rest, NewSeen, RestOrder),
@@ -147,8 +140,8 @@ ex_genesis :-
     maplist(genesis_validator, [v1, v2, v3, v4]).
 
 genesis_validator(V) :-
-    make_block(V, 0, [], [], _),
-    make_cert(V, 0, [v1, v2, v3], _).
+    make_block(V, 0, [], []),
+    make_cert(V, 0, [v1, v2, v3]).
 
 %% ?- ex_genesis, config(C), valid_dag(C).
 %% true.
@@ -166,15 +159,15 @@ ex_wave0 :-
     round2_blocks,
     maplist(round2_cert, [v1-[v1,v2,v3], v2-[v1,v2,v3], v3-[v2,v3,v4], v4-[v1,v3,v4]]).
 
-round1_block(R0, V) :- make_block(V, 1, [], R0, _).
-round1_cert(V-Signers) :- make_cert(V, 1, Signers, _).
+round1_block(R0, V) :- make_block(V, 1, [], R0).
+round1_cert(V-Signers) :- make_cert(V, 1, Signers).
 
 round2_blocks :-
-    make_block(v1, 2, [], [c(v1,1), c(v2,1), c(v3,1)], _),
-    make_block(v2, 2, [], [c(v1,1), c(v2,1), c(v3,1)], _),
-    make_block(v3, 2, [], [c(v1,1), c(v2,1), c(v3,1)], _),
-    make_block(v4, 2, [], [c(v1,1), c(v3,1), c(v4,1)], _).
-round2_cert(V-Signers) :- make_cert(V, 2, Signers, _).
+    make_block(v1, 2, [], [c(v1,1), c(v2,1), c(v3,1)]),
+    make_block(v2, 2, [], [c(v1,1), c(v2,1), c(v3,1)]),
+    make_block(v3, 2, [], [c(v1,1), c(v2,1), c(v3,1)]),
+    make_block(v4, 2, [], [c(v1,1), c(v3,1), c(v4,1)]).
+round2_cert(V-Signers) :- make_cert(V, 2, Signers).
 
 %% ?- ex_wave0, config(C), committed_anchor(c(v1,1), C).
 %% true.
@@ -189,18 +182,18 @@ ex_wave1_skipped :-
     ex_wave0,
     R2 = [c(v1,2), c(v2,2), c(v3,2)],
     maplist(round3_block(R2), [v1, v2, v3]),
-    make_block(v4, 3, [], [c(v2,2), c(v3,2), c(v4,2)], _),
+    make_block(v4, 3, [], [c(v2,2), c(v3,2), c(v4,2)]),
     maplist(round3_cert, [v1-[v1,v2,v3], v2-[v1,v2,v3], v3-[v2,v3,v4], v4-[v1,v3,v4]]),
     % v1 references anchor c(v2,3); v2,v3,v4 skip it
-    make_block(v1, 4, [], [c(v1,3), c(v2,3), c(v3,3)], _),
-    make_block(v2, 4, [], [c(v1,3), c(v3,3), c(v4,3)], _),
-    make_block(v3, 4, [], [c(v1,3), c(v3,3), c(v4,3)], _),
-    make_block(v4, 4, [], [c(v1,3), c(v3,3), c(v4,3)], _),
+    make_block(v1, 4, [], [c(v1,3), c(v2,3), c(v3,3)]),
+    make_block(v2, 4, [], [c(v1,3), c(v3,3), c(v4,3)]),
+    make_block(v3, 4, [], [c(v1,3), c(v3,3), c(v4,3)]),
+    make_block(v4, 4, [], [c(v1,3), c(v3,3), c(v4,3)]),
     maplist(round4_cert, [v1-[v1,v2,v3], v2-[v1,v2,v4], v3-[v2,v3,v4], v4-[v1,v3,v4]]).
 
-round3_block(R2, V) :- make_block(V, 3, [], R2, _).
-round3_cert(V-Signers) :- make_cert(V, 3, Signers, _).
-round4_cert(V-Signers) :- make_cert(V, 4, Signers, _).
+round3_block(R2, V) :- make_block(V, 3, [], R2).
+round3_cert(V-Signers) :- make_cert(V, 3, Signers).
+round4_cert(V-Signers) :- make_cert(V, 4, Signers).
 
 %% ?- ex_wave1_skipped, config(C), \+ committed_anchor(c(v2,3), C).
 %% true.     % anchor NOT directly committed — only 1 vote
@@ -216,17 +209,17 @@ ex_wave2_transitive :-
     ex_wave1_skipped,
     R4 = [c(v1,4), c(v2,4), c(v3,4)],
     maplist(round5_block(R4), [v1, v2, v3]),
-    make_block(v4, 5, [], [c(v2,4), c(v3,4), c(v4,4)], _),
+    make_block(v4, 5, [], [c(v2,4), c(v3,4), c(v4,4)]),
     maplist(round5_cert, [v1-[v1,v2,v3], v2-[v1,v2,v3], v3-[v1,v3,v4], v4-[v2,v3,v4]]),
     R5 = [c(v1,5), c(v2,5), c(v3,5)],
     maplist(round6_block(R5), [v1, v2, v3]),
-    make_block(v4, 6, [], [c(v2,5), c(v3,5), c(v4,5)], _),
+    make_block(v4, 6, [], [c(v2,5), c(v3,5), c(v4,5)]),
     maplist(round6_cert, [v1-[v1,v2,v3], v2-[v1,v2,v3], v3-[v2,v3,v4], v4-[v1,v3,v4]]).
 
-round5_block(R4, V) :- make_block(V, 5, [], R4, _).
-round5_cert(V-Signers) :- make_cert(V, 5, Signers, _).
-round6_block(R5, V) :- make_block(V, 6, [], R5, _).
-round6_cert(V-Signers) :- make_cert(V, 6, Signers, _).
+round5_block(R4, V) :- make_block(V, 5, [], R4).
+round5_cert(V-Signers) :- make_cert(V, 5, Signers).
+round6_block(R5, V) :- make_block(V, 6, [], R5).
+round6_cert(V-Signers) :- make_cert(V, 6, Signers).
 
 %% ?- ex_wave2_transitive, config(C), committed_anchor(c(v3,5), C).
 %% true.     % wave 2 anchor directly committed
