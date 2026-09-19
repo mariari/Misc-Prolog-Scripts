@@ -16,7 +16,6 @@ config :al,
   ],
   package_environment: [:jack]
 
-
 config :al, AL.MCP,
   enabled: true,
   ip: {127, 0, 0, 1},
