@@ -59,7 +59,7 @@ defmodule AlUse do
             hands
           )
 
-          find_min(hands, :tier, hand)
+          min(hands, [x, k], [send(x, :tier, [k])], hand)
         end
 
         # subclass responsibility
@@ -81,26 +81,51 @@ defmodule AlUse do
       defclass :pair, super: :hand, redef: true, ivars: [pair: []] do
         defmethod(:tier, [self, 9])
 
-        defmethod(:valid, [self]) do
+        defmethod :init, [self, args, self] do
+          get(self, :cards, cards)
+          duplicates(cards, duped_cardrs)
+          find_pair(self, duped_cardrs, pair)
+          set_slot(self, :pair, pair)
         end
+
+        defmethod(:valid, [self])
 
         defmethod(:value, [self, value]) do
           get(self, pair, card)
           value(card, value)
         end
+
+        defmethod :find_pair, [_, cards, pair] do
+          max(cards, [x, k], [send(x, :value, [k])], pair)
+        end
       end
 
-      defclass :high_card, super: :hand, redef: true, ivars: [high: []] do
+      defclass :high_card, super: :hand, redef: true, ivars: [high: [], high2: []] do
         defmethod(:tier, [self, 10])
+
+        defmethod :init, [self, args, self] do
+          get(self, :cards, cards)
+          find_high(self, cards, high)
+          find_high(self, cards_removed, high2)
+          remove(cards, high, cards_removed)
+          set_slot(self, :high, high)
+          set_slot(self, :high2, high2)
+        end
+
         defmethod(:valid, [self])
 
         defmethod :value, [self, value] do
           get(self, high, card)
           value(card, value)
         end
+
+        defmethod :find_high, [_, cards, pair] do
+          max(cards, [x, k], [send(x, :value, [k])], pair)
+        end
       end
 
-      include_method(build, :list, :find_min)
+      include_method(build, :list, :min)
+      include_method(build, :list, :max)
       include_class(build, :card)
       include_class(build, :hand)
       include_class(build, :high_card)

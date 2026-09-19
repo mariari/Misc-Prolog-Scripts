@@ -25,7 +25,7 @@ Class {
     hands
   )
 
-  find_min(hands, :tier, hand)
+  min(hands, [x, k], [{:send, x, :tier, [k]}], hand)
 ]
 
 :hand >> :valid, [self] [
