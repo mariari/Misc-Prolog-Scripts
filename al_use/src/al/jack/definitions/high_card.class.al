@@ -10,16 +10,13 @@ Class {
 ]
 
 :high_card >> :init, [self, args, self] [
+  call_next_method(self, args, self)
   get(self, :cards, cards)
   find_high(self, cards, high)
-  find_high(self, cards_removed, high2)
   remove(cards, high, cards_removed)
+  find_high(self, cards_removed, high2)
   set_slot(self, :high, high)
   set_slot(self, :high2, high2)
-]
-
-:high_card >> :valid, [self] [
-
 ]
 
 :high_card >> :value, [self, value] [

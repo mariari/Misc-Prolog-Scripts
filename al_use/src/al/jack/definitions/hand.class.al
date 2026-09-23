@@ -10,14 +10,9 @@ Class {
     super(class, :hand)
     get(self, :cards, cards)
     new(class, %{cards: cards}, hand)
-    valid(hand)
   end
 
   min_by(hands, :tier, hand)
-]
-
-:hand >> :valid, [self] [
-  fail()
 ]
 
 :hand >> :value, [self, val] [

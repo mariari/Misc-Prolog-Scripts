@@ -11,6 +11,33 @@ defmodule AlUse do
 
       active_build(:jack, build)
 
+      defmethod(:list, :remove, [[x | t], x, t])
+
+      defmethod :list, :remove, [[h | t], x, [h | r]] do
+        dif(h, x)
+        remove(t, x, r)
+      end
+
+      # value => cards with that value, one value send per card
+      defmethod(:list, :group_by_value, [[], groups, groups])
+
+      defmethod :list, :group_by_value, [[c | t], acc, groups] do
+        value(c, v)
+        get(acc, v, [], cs)
+        put(acc, v, [c | cs], next)
+        group_by_value(t, next, groups)
+      end
+
+      # cards whose value is shared with another card in the list
+      defmethod :list, :duplicates, [xs, dups] do
+        group_by_value(xs, %{}, groups)
+
+        findall(c, dups) do
+          get(groups, _v, [a, b | rest])
+          member([a, b | rest], c)
+        end
+      end
+
       defclass :card, super: :value, redef: true, ivars: [:value, :suit] do
         defmethod :value, [self, value] do
           get(self, :value, value)
@@ -28,17 +55,11 @@ defmodule AlUse do
           findall(hand, hands) do
             super(class, :hand)
             get(self, :cards, cards)
+            # new fails if criteria isn't met
             new(class, %{cards: cards}, hand)
-            # consider removing for new enforcing validity
-            valid(hand)
           end
 
           min_by(hands, :tier, hand)
-        end
-
-        # subclass responsibility
-        defmethod :valid, [self] do
-          fail
         end
 
         # Value within a tier, subclass responsibility
@@ -56,13 +77,12 @@ defmodule AlUse do
         defmethod(:tier, [self, 9])
 
         defmethod :init, [self, args, self] do
+          call_next_method(self, args, self)
           get(self, :cards, cards)
-          duplicates(cards, duped_cardrs)
-          find_pair(self, duped_cardrs, pair)
+          duplicates(cards, duped_cards)
+          find_pair(self, duped_cards, pair)
           set_slot(self, :pair, pair)
         end
-
-        defmethod(:valid, [self])
 
         defmethod(:value, [self, value]) do
           get(self, :pair, card)
@@ -78,15 +98,14 @@ defmodule AlUse do
         defmethod(:tier, [self, 10])
 
         defmethod :init, [self, args, self] do
+          call_next_method(self, args, self)
           get(self, :cards, cards)
           find_high(self, cards, high)
-          find_high(self, cards_removed, high2)
           remove(cards, high, cards_removed)
+          find_high(self, cards_removed, high2)
           set_slot(self, :high, high)
           set_slot(self, :high2, high2)
         end
-
-        defmethod(:valid, [self])
 
         defmethod :value, [self, value] do
           get(self, :high, card)
@@ -98,6 +117,9 @@ defmodule AlUse do
         end
       end
 
+      include_method(build, :list, :remove)
+      include_method(build, :list, :group_by_value)
+      include_method(build, :list, :duplicates)
       include_class(build, :card)
       include_class(build, :hand)
       include_class(build, :high_card)
