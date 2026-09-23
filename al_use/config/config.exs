@@ -12,7 +12,8 @@ config :al,
     AL.TransactionProgram.PackageSystem
   ],
   package_channels: [
-    {:builtin, {:priv, "packages"}}
+    {:builtin, {:priv, "packages"}},
+    {:local, "src/al"}
   ],
   package_environment: [:jack]
 

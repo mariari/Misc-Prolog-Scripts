@@ -11,7 +11,7 @@ defmodule AlUse do
 
       active_build(:jack, build)
 
-      defclass :card, super: :value, redef: true, ivars: [value: [], suit: []] do
+      defclass :card, super: :value, redef: true, ivars: [:value, :suit] do
         defmethod :value, [self, value] do
           get(self, :value, value)
         end
@@ -21,45 +21,19 @@ defmodule AlUse do
         end
       end
 
-      defmethod :list, :max, [xs, head, body, val] do
-        min(xs, [x, k], [call(head, body, [x, v]), eq(k, 0 - v)], val)
-      end
-
-      defmethod(:list, :min, [[], _, _, :none])
-
-      defmethod :list, :min, [[h | t], head, body, val] do
-        implies do
-          [call(head, body, [h, k])] -> min_from(t, head, body, h, k, val)
-          :else -> min(t, head, body, val)
-        end
-      end
-
-      defmethod(:list, :min_from, [[], _, _, best, _, best])
-
-      defmethod :list, :min_from, [[h | t], head, body, best, bk, val] do
-        implies do
-          [call(head, body, [h, k]), k < bk] -> min_from(t, head, body, h, k, val)
-          :else -> min_from(t, head, body, best, bk, val)
-        end
-      end
-
       # We are the super class of all hands
-      defclass :hand, super: :object, redef: true, ivars: [cards: [default: []]] do
+      defclass :hand, super: :object, redef: true, ivars: [%{name: :cards, default: []}] do
         # ideally on the class side
         defmethod :determine_hand, [self, hand] do
-          findall(
-            hand,
-            [
-              super(class, :hand),
-              get(self, :cards, cards),
-              new(class, %{cards: cards}, hand),
-              # consider removing for new enforcing validity
-              valid(hand)
-            ],
-            hands
-          )
+          findall(hand, hands) do
+            super(class, :hand)
+            get(self, :cards, cards)
+            new(class, %{cards: cards}, hand)
+            # consider removing for new enforcing validity
+            valid(hand)
+          end
 
-          min(hands, [x, k], [send(x, :tier, [k])], hand)
+          min_by(hands, :tier, hand)
         end
 
         # subclass responsibility
@@ -78,7 +52,7 @@ defmodule AlUse do
         end
       end
 
-      defclass :pair, super: :hand, redef: true, ivars: [pair: []] do
+      defclass :pair, super: :hand, redef: true, ivars: [:pair] do
         defmethod(:tier, [self, 9])
 
         defmethod :init, [self, args, self] do
@@ -91,16 +65,16 @@ defmodule AlUse do
         defmethod(:valid, [self])
 
         defmethod(:value, [self, value]) do
-          get(self, pair, card)
+          get(self, :pair, card)
           value(card, value)
         end
 
         defmethod :find_pair, [_, cards, pair] do
-          max(cards, [x, k], [send(x, :value, [k])], pair)
+          max_by(cards, :value, pair)
         end
       end
 
-      defclass :high_card, super: :hand, redef: true, ivars: [high: [], high2: []] do
+      defclass :high_card, super: :hand, redef: true, ivars: [:high, :high2] do
         defmethod(:tier, [self, 10])
 
         defmethod :init, [self, args, self] do
@@ -115,17 +89,15 @@ defmodule AlUse do
         defmethod(:valid, [self])
 
         defmethod :value, [self, value] do
-          get(self, high, card)
+          get(self, :high, card)
           value(card, value)
         end
 
         defmethod :find_high, [_, cards, pair] do
-          max(cards, [x, k], [send(x, :value, [k])], pair)
+          max_by(cards, :value, pair)
         end
       end
 
-      include_method(build, :list, :min)
-      include_method(build, :list, :max)
       include_class(build, :card)
       include_class(build, :hand)
       include_class(build, :high_card)

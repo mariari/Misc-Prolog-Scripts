@@ -25,10 +25,10 @@ defmodule AlUse.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:al, git: "https://github.com/anoma/AL-Ex.git", tag: "0.4.0"},
+      {:al, git: "https://github.com/anoma/AL-Ex.git", tag: "0.4.2"},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:ex_example, "~> 0.1.2"},
-      {:gt_bridge, "~> 0.20.1", override: true}
+      {:gt_bridge, "~> 0.20.2", override: true}
     ]
   end
 end

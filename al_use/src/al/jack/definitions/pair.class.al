@@ -2,8 +2,12 @@ Class {
   #name : :pair,
   #superclass : [:hand],
   #metaclass : :class,
-  #ivars : [pair: []]
+  #ivars : [:pair]
 }
+
+:pair >> :tier, [self, 9] [
+
+]
 
 :pair >> :init, [self, args, self] [
   get(self, :cards, cards)
@@ -12,19 +16,15 @@ Class {
   set_slot(self, :pair, pair)
 ]
 
-:pair >> :find_pair, [_, cards, pair] [
-  max(cards, [x, k], [{:send, x, :value, [k]}], pair)
-]
-
-:pair >> :tier, [self, 9] [
-
-]
-
 :pair >> :valid, [self] [
 
 ]
 
 :pair >> :value, [self, value] [
-  get(self, pair, card)
+  get(self, :pair, card)
   value(card, value)
+]
+
+:pair >> :find_pair, [_, cards, pair] [
+  max_by(cards, :value, pair)
 ]
