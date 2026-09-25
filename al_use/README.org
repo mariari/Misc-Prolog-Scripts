@@ -1,0 +1,19 @@
+* AlUse
+** How to edit and export (File edition)
+1. Edit code in ~./src/al/branches/main/definitions/~, this gets
+   watched, it gets added to the image automatically upon save.
+2. If you add new definitions then add them to ~AlUse.include/0~, this
+   will make surer it will be exported when we export (run it duh).
+3. we have ~AlUse.export~ run this to export code and then commit
+** How to edit and export (GT edition)
+TODO
+** Installation
+#+begin_src elixir
+def deps do
+  [
+    {:al_use, "~> 0.1.0"}
+  ]
+end
+#+end_src
+
+
